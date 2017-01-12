@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<title>Seattle Bike</title>
+	<script src="d3.v4.min.js"></script>
+	<script src="d3.v3.min.js"></script>
+	<script src="topojson.v0.min.js"></script>
+	<script src="d3CheckBox.js"></script>
+
+<style>
+
+
+
+
+.geojson {
+ fill: none;
+ stroke: red;
+/* stroke-width: 5;*/
+}
+
+
+.symbol {
+  fill: steelblue;
+  fill-opacity: .8;
+  stroke: #fff;
+	}
+
+
+
+
+
+.button rect {
+  stroke: #000000;
+  stroke-width: 2px;
+}
+
+.button #gradient-start {
+/*  stop-color: #3498db; */
+  stop-color: #1a1c1d; /* 70% */
+  stop-opacity: 1;
+}
+
+.button #gradient-stop {
+/*  stop-color: #2980b9; */
+  stop-color: #a4a4a4; /* 100% */
+  stop-opacity: 1;
+}
+
+.button #gradient-start.active {
+/*  stop-color: #3cb0fd; */
+  stop-color: #383a3b; /* 40% */
+}
+
+.button #gradient-stop.active {
+/*  stop-color: #3498db; */
+  stop-color: #c6c6c6; /* 70% */
+}
+
+
+
+
+
+
+
+
+h1 {
+  font: 600 70px  / 1325px  "Helvetica Neue";
+  text-align: right;
+  width: 1500px;
+  height: 0px;
+  margin: 0;
+}
+
+
+  
+</style>
+  
+  
+</head>
+
+
+<body>
+
+<h1>0</h1>
+<div id="vis"></div>
+
+<script>
+  
+
+var stationsID  =[];
+var trip=[];
+var stations = [];
+var CroiseStations2 = [];
+var width = 1500;
+var height = 700;
+var NombreTrajetsAAfficher = 100
+//var NombreTrajetsAAfficher2=1;
+var dataAff = [];
+var LignesTrajets = [];
+var DebutNonNul = 0;
+var idtrip = 0
+var idtrip2 = "#CCOIT";
+
+var svg = d3.select("body").append("svg")
+	.attr("width", width)
+	.attr("height", height)
+	.datum({x: 1325, y: 75 });
+
+
+
+// Début du travail dans la carte
+d3.json("city-limits.geojson", function (error, jpn) {
+  
+    var projection = d3.geo.mercator()
+    	.translate([600,420])
+	   .center([-122.3, 47.625])
+	    .scale(350000)
+
+    var path = d3.geo.path()
+	    .projection(projection);
+
+    svg.selectAll("path")
+	.data(jpn.features)
+	.enter()
+	.append("path")
+	.attr("stroke", "white")
+	.attr("stroke-width", "0.5")
+	.attr("d", path);
+  
+  
+
+
+
+
+  
+// Début du travail sur les stations
+d3.csv("station.csv", function(dataS) {
+
+
+
+for (var i=0 ;  i<dataS.length ; i++){
+var t=[];
+t.push(dataS[i].long)
+t.push(dataS[i].lat)
+stations.push(t)
+}
+
+
+for (var i=0 ;  i<dataS.length ; i++){
+stationsID.push(dataS[i].station_id)
+}
+
+
+
+var sta = stations.map(function(d){
+	return {"type": "Point", "coordinates": [d[0], d[1]] };
+	});
+
+
+ svg.selectAll(".symbol")
+    .data(sta)
+    .enter().append("path")
+    .attr("class", "symbol")
+    .attr("d", path );
+
+
+
+
+
+
+
+
+// Début du travail sur les trips
+d3.csv("trip.csv", function(data) {
+
+
+
+
+
+
+
+
+
+
+// Slider ligne
+
+var line = svg.append("line")
+      .attr("x1", 1200)
+      .attr("x2", 1450)
+      .attr("y1", 75)
+      .attr("y2", 75)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 8);
+
+
+
+var drag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", updateSlider);
+
+
+var circle = svg.append("circle")
+      .attr("r", 13)
+      .attr("cy", function(d) { return d.y; })
+	.attr("cx", function(d) { return d.x; })	
+	//.attr("cx", 1325)      
+	//.attr("cx", function(d) { return d.x; })
+      .style("cursor", "ew-resize")
+      .call(drag);
+
+
+var texts = svg.append("text")
+	.text(NombreTrajetsAAfficher)
+	.attr("id","nbtrajetsaff")	
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 107)
+		   .attr("x", 1304)
+
+
+var texts = svg.append("text")
+     .text("Number of trips to display")
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 42)
+		   .attr("x", 1200);
+
+
+
+
+function updateSlider(d){
+
+var x = d3.event.x;
+x = x < 1200 ? 1200 : x > 1450 ? 1450 : x;
+d.x = x;
+circle.attr("cx", x);
+
+NombreTrajetsAAfficher = Math.round(  (200/250)*x-((200/250)*1200)  );
+
+
+		svg.selectAll("#nbtrajetsaff").text(NombreTrajetsAAfficher)
+									.attr("x", function(){
+										if (NombreTrajetsAAfficher < 100){return x-12}
+										else {return x-21}
+		 								}); 
+updateSliderOnly()
+//CalculsData();
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Début du travail cases mois
+
+var texts = svg.append("text")
+     .text("Months")
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 155)
+		   .attr("x", 1308);
+
+
+
+
+var texts = svg.append("text")
+     .text("Days")
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 270)
+		   .attr("x", 1318);
+
+
+var texts = svg.append("text")
+     .text("M T W T F")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 340)
+		   .attr("x", 1250);
+
+
+
+var texts = svg.append("text")
+     .text("S S")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 340)
+		   .attr("x", 1380);
+
+
+
+
+var texts = svg.append("text")
+     .text("User type")
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 390)
+		   .attr("x", 1295);
+
+
+
+
+var texts = svg.append("text")
+     .text("Member")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 465)
+		   .attr("x", 1250);
+
+
+
+var texts = svg.append("text")
+     .text("Short-term")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 465)
+		   .attr("x", 1350);
+
+
+
+
+var texts = svg.append("text")
+     .text("Weather event")
+	.attr("font-size", "20px")
+	.attr("fill", "black")
+	   .attr("y", 515)
+		   .attr("x", 1269);
+
+
+
+
+var texts = svg.append("text")
+     .text("No rain")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 590)
+		   .attr("x", 1260);
+
+
+
+var texts = svg.append("text")
+     .text("Rain")
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	   .attr("y", 590)
+		   .attr("x", 1375);
+
+
+var svgg = d3.select("#vis").append("svgg")
+
+        checkBox1 = new d3CheckBox();
+        checkBox2 = new d3CheckBox(),
+        checkBox3 = new d3CheckBox();
+	checkBox4 = new d3CheckBox();
+	checkBox5 = new d3CheckBox();
+	checkBox6 = new d3CheckBox();
+	checkBox7 = new d3CheckBox();
+	checkBox8 = new d3CheckBox();
+	checkBox9 = new d3CheckBox();
+	checkBox10 = new d3CheckBox();
+	checkBox11 = new d3CheckBox();
+	checkBox12 = new d3CheckBox();
+
+checkBox13 = new d3CheckBox();
+checkBox14 = new d3CheckBox();
+
+checkBox15 = new d3CheckBox();
+checkBox16 = new d3CheckBox();
+
+checkBox17 = new d3CheckBox();
+checkBox18 = new d3CheckBox();
+
+
+checkBox1.size(17).x(1200).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox2.size(17).x(1225).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox3.size(17).x(1250).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox4.size(17).x(1275).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox5.size(17).x(1300).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox6.size(17).x(1325).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox7.size(17).x(1350).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox8.size(17).x(1375).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox9.size(17).x(1400).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox10.size(17).x(1425).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox11.size(17).x(1450).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox12.size(17).x(1475).y(175).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+    
+checkBox13.size(30).x(1276).y(285).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox14.size(30).x(1378).y(285).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+
+checkBox15.size(30).x(1276).y(410).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox16.size(30).x(1378).y(410).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+
+checkBox17.size(30).x(1276).y(535).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+checkBox18.size(30).x(1378).y(535).markStrokeWidth(5).boxStrokeWidth(2).checked(true).clickEvent(UpdateCheckboxResult);
+
+    svg.call(checkBox1);
+    svg.call(checkBox2);
+    svg.call(checkBox3);
+    svg.call(checkBox4);
+    svg.call(checkBox5);
+    svg.call(checkBox6);
+    svg.call(checkBox7);
+    svg.call(checkBox8);
+    svg.call(checkBox9);
+    svg.call(checkBox10);
+    svg.call(checkBox11);
+    svg.call(checkBox12);
+    
+    svg.call(checkBox13);
+    svg.call(checkBox14);
+
+    svg.call(checkBox15);
+    svg.call(checkBox16);
+
+	svg.call(checkBox17);
+    svg.call(checkBox18);
+
+ var checkboxResult = [checkBox1.checked() , checkBox2.checked(),checkBox3.checked(),checkBox4.checked(),checkBox5.checked(),checkBox6.checked(),checkBox7.checked(),checkBox8.checked(),checkBox9.checked(),checkBox10.checked(),checkBox11.checked(),checkBox12.checked()];
+
+
+function UpdateCheckboxResult(){
+checkboxResult = [checkBox1.checked() , checkBox2.checked(),checkBox3.checked(),checkBox4.checked(),checkBox5.checked(),checkBox6.checked(),checkBox7.checked(),checkBox8.checked(),checkBox9.checked(),checkBox10.checked(),checkBox11.checked(),checkBox12.checked()];
+CalculsData();	
+}
+
+
+
+//On ajoute les textes des mois
+
+var months = ["J", "F", "M", "A", "M", "J", "J" , "A" , "S" , "O" , "N", "D"];
+
+
+for (var i=0 ; i<12 ; i++){
+var texts = svg.append("text")
+	.text(months[i])
+	.attr("id","AffMois")	
+	.attr("font-size", "18px")
+	.attr("fill", "black")
+	.attr("x", 1203+25*i)
+	.attr("y", 215);
+};
+
+
+//Fin du travail cases mois
+
+
+
+
+
+
+
+CroiseStations  = []
+
+for (var i=0 ;  i<dataS.length ; i++){
+for (var j=0 ;  j<dataS.length ; j++){
+
+var t=[];
+t.push(dataS[i].station_id)
+t.push(dataS[j].station_id)
+t.push(0)
+CroiseStations.push(t);
+
+}
+}
+
+
+
+
+
+
+function CalculsData() {
+
+
+
+for (var i=0 ; i<CroiseStations.length ; i++){
+CroiseStations[i][2]=0
+};
+
+
+
+trip = [];
+
+
+
+
+for (var i=0 ; i<data.length; i++){
+	
+	var moisTrip = parseInt((data[i].date[0]+data[i].date[1]))
+
+	if (checkboxResult[moisTrip-1] == true){
+
+		if (  (checkBox13.checked()==true && parseInt(data[i].date[11])<6) ||  (checkBox14.checked()==true && parseInt(data[i].date[11])>5) ) {
+
+
+			if (  (checkBox15.checked()==true && data[i].usertype == "M"  ) ||  (checkBox16.checked()==true && data[i].usertype == "S"  ) ) {
+
+
+				if ( ( checkBox17.checked() == true && data[i].Rain == 0 ) || (checkBox18.checked() == true && data[i].Rain == 1 ) ) {
+
+		var t=[];		
+		t.push(data[i].from_station_id)
+		t.push(data[i].to_station_id)
+		t.push(data[i].date)
+		t.push(data[i].usertype)
+		trip.push(t)
+	
+
+	}
+	}
+	}
+	}
+
+};
+
+
+
+
+
+
+
+for (var i=0 ; i<trip.length ; i++){
+if (stationsID.indexOf(trip[i][0]) !=-1 &&  stationsID.indexOf(trip[i][1]) !=-1){
+var numeroPaire=((stationsID.indexOf(trip[i][0]) * 58) + stationsID.indexOf(trip[i][1]));
+CroiseStations[numeroPaire][2]++;
+}
+};
+
+
+
+
+// On tri les stations par nombre de trajets
+CroiseStations2 = CroiseStations.slice().sort(function(a,b) {
+        return b[2]-a[2]
+    });
+
+
+
+DebutNonNul=0;
+while (CroiseStations2[DebutNonNul][0]==CroiseStations2[DebutNonNul][1]){
+DebutNonNul++
+};
+
+
+
+
+var t2=[];
+
+
+for (var i = 0 ; i<200 ; i++){
+var t=[];
+t.push(stations[stationsID.indexOf(CroiseStations2[i][0])])
+t.push(stations[stationsID.indexOf(CroiseStations2[i][1])])
+t.push(CroiseStations2[i][2])
+t2.push(t)
+}
+
+
+LignesTrajets = t2.map(function(d){
+return {"type": "LineString", "coordinates": [ d[0], d[1] ] };
+			});
+
+
+
+
+
+		
+
+
+svg.selectAll(".geojson").remove();
+
+LignesTrajets2 = LignesTrajets.slice(0, 200);
+
+
+if (CroiseStations2[0][2]>0){
+
+svg.selectAll(".geojson")
+		.data(LignesTrajets2)
+		.enter()
+		.append("path")
+		.attr("class","geojson")
+		.attr("d", path)
+		.attr('stroke-width', function(d,i){return 8*((CroiseStations2[i][2]/CroiseStations2[DebutNonNul][2])); })
+		//.attr("id", idtrip3)
+		.style("stroke-linecap", "round")
+		.style("opacity", 0);
+
+}
+
+updateSliderOnly();
+
+
+};
+
+
+
+
+
+
+
+
+
+function updateSliderOnly() {
+
+
+svg.selectAll(".geojson")
+.transition()
+.duration(700)
+.style("opacity", function(d,i){
+	if (i < NombreTrajetsAAfficher){return 1}
+	else {return 0}
+});
+
+
+
+
+TotalTrips = (trip.length.toString())
+
+
+
+
+TripTotalDisplay();
+
+}
+
+
+
+
+
+
+
+CalculsData();
+
+
+
+
+
+
+});
+// Fin du travail sur les trips
+
+
+
+
+});
+// Fin du travail sur les stations
+
+
+
+
+
+});
+// Fin du travail dans la carte
+
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+<script src="d3.v4.min.js"></script>
+
+<script>
+
+
+function TripTotalDisplay(){
+
+var format = d3.format("d");
+
+d3.select("h1")
+  .transition()
+    .duration(2000)
+    .on("start", function repeat() {
+      d3.active(this)
+          .tween("text", function() {
+            var that = d3.select(this),
+                i = d3.interpolateNumber(that.text().replace(/,/g, ""), trip.length);
+            return function(t) { that.text(format(i(t))); };
+          })
+    });
+
+
+}
+
+
+
+TripTotalDisplay();
+
+</script>
+
+
+
+</body>
+</html>
